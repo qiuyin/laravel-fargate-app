@@ -1,4 +1,3 @@
-FROM node:16-alpine as node
 FROM nginx:1.20-alpine
 LABEL maintainer="ucan-lab <yes@u-can.pro>"
 SHELL ["/bin/ash", "-oeux", "pipefail", "-c"]
@@ -6,14 +5,23 @@ SHELL ["/bin/ash", "-oeux", "pipefail", "-c"]
 ENV TZ=UTC
 
 RUN apk update && \
-  apk add --update --no-cache --virtual=.build-dependencies g++
+    apk add --update --no-cache \
+    tzdata \
+    curl \
+    git \
+    unzip \
+    && \
+    cp /usr/share/zoneinfo/UTC /etc/localtime && \
+    apk del tzdata && \
+    rm -rf /var/cache/apk/*
 
 # node command
-COPY --from=node /usr/local/bin /usr/local/bin
+RUN apk add --update --no-cache nodejs
 # npm command
-COPY --from=node /usr/local/lib /usr/local/lib
+RUN apk add --update --no-cache npm
 # yarn command
-COPY --from=node /opt /opt
+RUN npm install -g yarn
+
 # nginx config file
 COPY ./infra/docker/nginx/*.conf /etc/nginx/conf.d/
 
