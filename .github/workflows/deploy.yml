@@ -93,7 +93,7 @@ jobs:
       - name: Download ecspresso
         uses: kayac/ecspresso@v0
         with:
-          version: v1.5.3
+          version: v2.3.5
 
       - name: Deploy to ecs
         run: ecspresso deploy --config config_$ENV_NAME.yaml
