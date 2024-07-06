@@ -22,8 +22,9 @@ RUN apk add --update --no-cache npm
 # yarn command
 RUN npm install -g yarn
 
-# nginx config file
-COPY ./infra/docker/nginx/*.conf /etc/nginx/conf.d/
+# nginx config file will be output to /etc/nginx/conf.d/ by envsubst
+COPY ./infra/docker/nginx/default.conf /etc/nginx/templates/default.conf.template
+COPY ./infra/docker/nginx/nginx.conf /etc/nginx/nginx.conf
 
 COPY ./backend/public /work/backend/public
 
