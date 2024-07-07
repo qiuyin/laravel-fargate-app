@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - feature/push_images_to_ecr
+      - feature/deploy_fargate
 
 env:
   AWS_REGION: ap-northeast-1
@@ -30,7 +30,11 @@ jobs:
 
       - name: Set env vars for prod
         # if: github.ref == 'refs/heads/main'
-        run: echo "ENV_NAME=prod" >> $GITHUB_ENV
+        run: |
+          echo "ENV_NAME=prod" >> $GITHUB_ENV
+          echo "VPC_CIDR=171.32.0.0/16" >> $GITHUB_ENV
+
+
 
       - uses: actions/checkout@v2
 
@@ -88,3 +92,28 @@ jobs:
             -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      - name: Upload env file
+        run: aws s3 cp .env.$ENV_NAME s3://qiuyin-$SYSTEM_NAME-$ENV_NAME-$SERVICE_NAME-env-file/$IMAGE_TAG/.env
+        working-directory: backend
+
+      - name: Download ecspresso
+        uses: kayac/ecspresso@v2
+        with:
+          version: v2.3.5
+
+      - name: Register task_definition
+        run: ecspresso register --config config_$ENV_NAME.yaml
+        working-directory: ./ecspresso
+
+      - name: Migrate database
+        run: |
+          ecspresso run --config config_$ENV_NAME.yaml \
+            --latest-task-definition \
+            --watch-container=php \
+            --overrides='{"containerOverrides":[{"name":"nginx", "command":["nginx", "-v"]},{"name":"php", "command":["php", "artisan", "migrate", "--force"]}]}'
+        working-directory: ./ecspresso
+
+      - name: Deploy to ecs
+        run: ecspresso deploy --config config_$ENV_NAME.yaml
+        working-directory: ./ecspresso
